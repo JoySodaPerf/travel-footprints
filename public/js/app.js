@@ -145,7 +145,7 @@
 
     updateStatus();
     updateNearby();
-    renderList();
+    refreshSheet();
     refreshMarkers();
   }
 
@@ -241,14 +241,48 @@
     const p = poiById(id);
     if (!p) return;
     selectedId = id;
+    detailState.id = null; // 强制完整渲染
     $('#sheet').classList.add('detail-mode');
     renderDetail(p);
   }
 
   function closeDetail() {
     selectedId = null;
+    detailState.id = null;
     $('#sheet').classList.remove('detail-mode');
     renderList();
+  }
+
+  /* 定位更新时按当前面板模式刷新：
+   * 列表模式 -> 重渲染列表；详情模式 -> 仅当状态变化时重建，否则原地更新距离 */
+  const detailState = { id: null, reachable: false, checked: false };
+  function refreshSheet() {
+    if (selectedId) {
+      const p = poiById(selectedId);
+      if (!p) return;
+      const ck = checkins[p.id];
+      const reachable = !ck && inRange(p);
+      if (detailState.id !== p.id || detailState.reachable !== reachable || detailState.checked !== !!ck) {
+        detailState.id = p.id;
+        detailState.reachable = reachable;
+        detailState.checked = !!ck;
+        renderDetail(p);
+      } else {
+        updateDetailDynamic(p);
+      }
+    } else {
+      renderList();
+    }
+  }
+
+  function updateDetailDynamic(p) {
+    const d = distToUser(p);
+    const distEl = document.getElementById('detail-dist');
+    if (distEl) distEl.textContent = fmtDist(d);
+    const btn = document.getElementById('checkin-btn');
+    if (btn && btn.disabled && !checkins[p.id]) {
+      btn.textContent = d !== null ? '距目标还有 ' + fmtDist(d) : '等待定位…';
+    }
   }
 
   function renderDetail(p) {
@@ -256,12 +290,15 @@
     const d = distToUser(p);
     const ck = checkins[p.id];
     const reachable = !ck && inRange(p);
+    detailState.id = p.id;
+    detailState.reachable = reachable;
+    detailState.checked = !!ck;
 
     let meta =
       '<div class="detail-meta">' +
         '<span><b>' + p.type + '</b></span>' +
         '<span>海拔 <b>' + p.alt + '</b> m</span>' +
-        '<span>距我 <b>' + fmtDist(d) + '</b></span>' +
+        '<span>距我 <b id="detail-dist">' + fmtDist(d) + '</b></span>' +
         '<span>打卡半径 <b>' + p.radius + '</b> 米</span>' +
       '</div>';
     let tip = p.tip ? '<div class="detail-tip">' + p.tip + '</div>' : '';
@@ -271,9 +308,9 @@
     } else if (d !== null && d <= p.radius) {
       btn = '<button class="checkin-btn" id="checkin-btn">到此打卡</button>';
     } else if (d !== null) {
-      btn = '<button class="checkin-btn" disabled>距目标还有 ' + fmtDist(d) + '</button>';
+      btn = '<button class="checkin-btn" id="checkin-btn" disabled>距目标还有 ' + fmtDist(d) + '</button>';
     } else {
-      btn = '<button class="checkin-btn" disabled>等待定位…</button>';
+      btn = '<button class="checkin-btn" id="checkin-btn" disabled>等待定位…</button>';
     }
 
     body.innerHTML =
