@@ -54,6 +54,11 @@ wrangler pages deploy public --project-name travel-footprints
 
 > 说明：PWA（Service Worker、安装）要求 HTTPS，Cloudflare Pages 默认提供。
 
+## 版本发布
+
+- 修改功能后，将 `public/sw.js` 顶部的 `VERSION` 递增（如 `tf-v2` → `tf-v3`）
+- 已安装用户每次启动会检测 `sw.js` 是否变化，变化即自动下载并切换到新版本（下次启动生效）；离线启动则继续使用本地缓存版本
+
 ## 修改打卡点
 
 编辑 `public/js/pois.js`，按字段（`name`、`lat`、`lng`、`alt`、`radius`、`intro`、`tip`）增删即可。坐标使用 WGS84，与手机 GPS 和 OpenStreetMap 一致。
