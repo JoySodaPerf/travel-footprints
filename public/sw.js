@@ -1,0 +1,78 @@
+/* Service Worker：应用壳离线缓存 + 地图瓦片有限缓存 */
+const VERSION = 'tf-v1';
+const PRECACHE = [
+  '/',
+  '/index.html',
+  '/css/style.css',
+  '/js/pois.js',
+  '/js/app.js',
+  '/manifest.webmanifest',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+  'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css',
+  'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js'
+];
+const TILE_CACHE = 'tf-tiles-v1';
+const MAX_TILES = 400;
+
+self.addEventListener('install', function (e) {
+  e.waitUntil(
+    caches.open(VERSION)
+      .then(function (c) { return c.addAll(PRECACHE); })
+      .then(function () { return self.skipWaiting(); })
+  );
+});
+
+self.addEventListener('activate', function (e) {
+  e.waitUntil(
+    caches.keys().then(function (keys) {
+      return Promise.all(keys.map(function (k) {
+        if (k !== VERSION && k !== TILE_CACHE) return caches.delete(k);
+      }));
+    }).then(function () { return self.clients.claim(); })
+  );
+});
+
+self.addEventListener('fetch', function (e) {
+  if (e.request.method !== 'GET') return;
+  const url = new URL(e.request.url);
+
+  if (url.hostname === 'tile.openstreetmap.org') {
+    e.respondWith(tileFetch(e.request));
+    return;
+  }
+
+  e.respondWith(
+    caches.match(e.request).then(function (hit) {
+      if (hit) return hit;
+      return fetch(e.request).then(function (res) {
+        if (res && res.ok && url.origin === self.location.origin) {
+          const clone = res.clone();
+          caches.open(VERSION).then(function (c) { c.put(e.request, clone); });
+        }
+        return res;
+      }).catch(function () {
+        // 离线时导航回退到应用壳
+        if (e.request.mode === 'navigate') return caches.match('/index.html');
+        return new Response('', { status: 503, statusText: 'Offline' });
+      });
+    })
+  );
+});
+
+async function tileFetch(req) {
+  const cache = await caches.open(TILE_CACHE);
+  const hit = await cache.match(req);
+  if (hit) return hit;
+  try {
+    const res = await fetch(req);
+    if (res && res.ok) {
+      const keys = await cache.keys();
+      if (keys.length >= MAX_TILES) await cache.delete(keys[0]);
+      await cache.put(req, res.clone());
+    }
+    return res;
+  } catch (e) {
+    return new Response('', { status: 503, statusText: 'No network' });
+  }
+}
