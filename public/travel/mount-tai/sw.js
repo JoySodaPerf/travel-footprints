@@ -3,14 +3,14 @@
  * 已安装用户启动时检测到 sw.js 变化即自动更新到新版本。 */
 const VERSION = 'tf-v2';
 const PRECACHE = [
-  '/',
-  '/index.html',
-  '/css/style.css',
-  '/js/pois.js',
-  '/js/app.js',
-  '/manifest.webmanifest',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
+  './',
+  'index.html',
+  'css/style.css',
+  'js/pois.js',
+  'js/app.js',
+  'manifest.webmanifest',
+  'icons/icon-192.png',
+  'icons/icon-512.png',
   'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css',
   'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js'
 ];
@@ -55,7 +55,7 @@ self.addEventListener('fetch', function (e) {
         return res;
       }).catch(function () {
         // 离线时导航回退到应用壳
-        if (e.request.mode === 'navigate') return caches.match('/index.html');
+        if (e.request.mode === 'navigate') return caches.match('index.html');
         return new Response('', { status: 503, statusText: 'Offline' });
       });
     })

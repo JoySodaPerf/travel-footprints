@@ -2,6 +2,12 @@
 
 记录旅游足迹的 **PWA**：地图定位、景点打卡、背景信息介绍。内置泰山经典红门登山路线 11 个打卡点，手机访问后可直接安装到桌面，离线也能打开。
 
+## 访问地址
+
+- 正式入口：`https://app.soda-perf.com/travel/mount-tai`（经网关 Worker 转发到 Pages）
+- 直连地址：`https://travel-footprints.pages.dev/travel/mount-tai`
+- `app.soda-perf.com` 为多应用网关：根路径不指向应用，`/travel/mount-tai` 泰山打卡、`/mhxy/wtutils` 白虎助手分别由独立路由承担
+
 ## 功能
 
 - **地图**：Leaflet + OpenStreetMap，无需任何地图 API Key
@@ -19,16 +25,32 @@
 ## 目录结构
 
 ```
-public/                  # 站点根目录（Cloudflare Pages 构建输出目录）
-  index.html             # 应用入口
-  css/style.css          # 样式
-  js/pois.js             # 泰山景点数据（坐标/介绍/打卡半径）
-  js/app.js              # 地图、定位、打卡、渲染逻辑
-  manifest.webmanifest   # PWA 清单
-  sw.js                  # Service Worker（离线缓存）
-  icons/                 # 应用图标
-wrangler.toml            # Cloudflare Pages 配置
+public/                      # 站点根目录（Cloudflare Pages 构建输出目录）
+  travel/mount-tai/          # 泰山打卡应用（相对路径引用，可部署于任意子路径）
+    index.html               # 应用入口
+    css/style.css            # 样式
+    js/pois.js               # 泰山景点数据（坐标/介绍/打卡半径）
+    js/app.js                # 地图、定位、打卡、渲染逻辑
+    manifest.webmanifest     # PWA 清单
+    sw.js                    # Service Worker（离线缓存）
+    icons/                   # 应用图标
+  _headers                   # 边缘缓存策略（sw.js 等不缓存）
+  _redirects                 # 根路径 302 到 /travel/mount-tai/
+gateway/                     # app.soda-perf.com 网关 Worker
+  src/index.js               # /travel/mount-tai/* 转发到 Pages
+  wrangler.toml              # 含 zone 路由配置
+wrangler.toml                # Cloudflare Pages 配置
 ```
+
+## 网关路由
+
+`app.soda-perf.com` 通过 Cloudflare Zone Routes 分发：
+
+| 路径 | 目标 |
+| --- | --- |
+| `/travel/mount-tai`、`/travel/mount-tai/*` | `travel-mount-tai` Worker → 转发 Pages 项目 |
+| `/mhxy/wtutils`、`/mhxy/wtutils/*` | `mhxy-white-tiger-helper` Worker（白虎助手） |
+| 其余（含根路径） | 不指向任何应用 |
 
 ## 本地预览
 

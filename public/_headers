@@ -1,8 +1,8 @@
-/sw.js
+/travel/mount-tai/sw.js
   Cache-Control: no-cache
 
-/manifest.webmanifest
+/travel/mount-tai/manifest.webmanifest
   Cache-Control: no-cache
 
-/index.html
+/travel/mount-tai/index.html
   Cache-Control: no-cache
