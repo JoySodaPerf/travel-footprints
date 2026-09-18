@@ -15,10 +15,7 @@
 <body>
   <header id="app-header">
     <div class="header-top">
-      <div class="brand">
-        <span class="brand-title">泰山 · 打卡足迹</span>
-        <span class="brand-sub" id="geo-status">正在获取定位…</span>
-      </div>
+      <span class="brand-title">泰山 · 打卡足迹</span>
       <div class="header-actions">
         <button id="sim-toggle" class="chip" type="button" title="模拟定位：在地图上点按放置测试位置">模拟</button>
         <button id="install-btn" class="chip hidden" type="button">安装应用</button>
@@ -30,16 +27,19 @@
     </div>
   </header>
 
-  <main id="map"></main>
+  <main id="map">
+    <div id="geo-status" class="geo-chip">正在获取定位…</div>
+  </main>
 
   <button id="locate-btn" class="locate-btn" type="button" title="回到我的位置">定位</button>
 
   <section id="sheet" class="sheet">
-    <div class="sheet-handle"></div>
+    <button id="sheet-toggle" class="sheet-toggle" type="button" aria-label="切换列表显示">
+      <span class="chevron"></span>
+      <span id="sheet-toggle-text">收起列表</span>
+    </button>
     <div id="sheet-body"></div>
   </section>
-
-  <div id="sim-banner" class="sim-banner hidden">模拟定位中：点击地图放置位置</div>
 
   <div id="toast" class="toast hidden"></div>
 

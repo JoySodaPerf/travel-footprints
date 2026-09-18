@@ -199,6 +199,16 @@
     const total = POIS.length;
     $('#progress-fill').style.width = (total ? (done / total * 100) : 0) + '%';
     $('#progress-text').textContent = done + ' / ' + total;
+    updateSheetToggle();
+  }
+
+  function updateSheetToggle() {
+    const sheet = $('#sheet');
+    const collapsed = sheet.classList.contains('collapsed');
+    const done = POIS.filter(isChecked).length;
+    $('#sheet-toggle-text').textContent = collapsed
+      ? '展开列表 · 已打卡 ' + done + '/' + POIS.length
+      : '收起列表';
   }
 
   function renderList() {
@@ -242,7 +252,10 @@
     if (!p) return;
     selectedId = id;
     detailState.id = null; // 强制完整渲染
-    $('#sheet').classList.add('detail-mode');
+    const sheet = $('#sheet');
+    sheet.classList.remove('collapsed');
+    sheet.classList.add('detail-mode');
+    updateSheetToggle();
     renderDetail(p);
   }
 
@@ -369,7 +382,6 @@
     $('#sim-toggle').addEventListener('click', function () {
       simMode = !simMode;
       $('#sim-toggle').classList.toggle('active', simMode);
-      $('#sim-banner').classList.toggle('hidden', !simMode);
       if (simMode) {
         if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
         setGeoStatus('模拟定位中：点击地图放置位置');
@@ -377,6 +389,10 @@
         setGeoStatus('已退出模拟，重新获取定位');
         startGeo();
       }
+    });
+    $('#sheet-toggle').addEventListener('click', function () {
+      $('#sheet').classList.toggle('collapsed');
+      updateSheetToggle();
     });
     window.addEventListener('beforeinstallprompt', function (e) {
       e.preventDefault();

@@ -1,7 +1,7 @@
 /* Service Worker：应用壳离线缓存 + 地图瓦片有限缓存
  * 发版说明：每次发布新版本必须将 VERSION 递增（如 tf-v2 -> tf-v3），
  * 已安装用户启动时检测到 sw.js 变化即自动更新到新版本。 */
-const VERSION = 'tf-v2';
+const VERSION = 'tf-v3';
 const PRECACHE = [
   './',
   'index.html',
