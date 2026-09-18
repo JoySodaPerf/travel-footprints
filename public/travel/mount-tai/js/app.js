@@ -10,6 +10,9 @@
 
   const ROUTES = window.ROUTES || [];
   const ROUTE_KEY = 'tf:route:v1';
+  // 应用版本号，发版时需与 sw.js 中的 VERSION 保持一致同步递增
+  const APP_VERSION = 'v9';
+  const APP_NAME = '泰山 · 打卡足迹';
   const CHECKINS_KEY = 'tf:checkins:v1';
   const NOTIFIED_KEY = 'tf:notified:v1';
   const SETTINGS_KEY = 'tf:settings:v1';
@@ -553,9 +556,32 @@
       '<div class="set-group">' +
         '<div class="set-label">耗电说明</div>' +
         '<div class="set-note">持续高精度 GPS 是主要耗电源。连续开启约一小时：高精度（每秒定位）约耗 20-40% 电量；平衡（5-15 秒）约 8-15%；省电（约 1 分钟）约 3-6%，视机型与信号而定。徒步中建议「平衡」，登顶休息时可切「省电」。</div>' +
+      '</div>' +
+
+      '<div class="set-group">' +
+        '<div class="set-title">数据备份 / 恢复</div>' +
+        '<div class="set-note">导出的 JSON 文件包含你的用户设置，以及全部已打卡记录，可在更换设备或误删后一键恢复。</div>' +
+        '<div class="set-data-actions">' +
+          '<button class="set-btn" id="export-data" type="button">导出配置与记录</button>' +
+          '<label class="set-btn ghost" id="import-label">导入恢复<input type="file" id="import-file" accept="application/json,.json" hidden></label>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="set-group about">' +
+        '<div class="set-about">' +
+          '<b>' + APP_NAME + '</b>' +
+          '<span>版本 <code id="about-version">' + APP_VERSION + '</code></span>' +
+          '<span class="set-about-muted">多路线 · 离线可用 · PWA</span>' +
+        '</div>' +
       '</div>';
 
     $('#settings-back').addEventListener('click', closeSettings);
+    $('#export-data').addEventListener('click', exportData);
+    const imp = $('#import-file');
+    if (imp) imp.addEventListener('change', function () {
+      if (imp.files && imp.files[0]) importData(imp.files[0]);
+      imp.value = '';
+    });
 
     body.querySelectorAll('input[name="set-acc"]').forEach(function (el) {
       el.addEventListener('change', function () {
@@ -584,6 +610,79 @@
         Notification.requestPermission();
       }
     });
+  }
+
+  /* ---------- 数据备份 / 恢复 ---------- */
+  function exportData() {
+    const payload = {
+      app: 'travel-footprints',
+      appName: APP_NAME,
+      version: APP_VERSION,
+      exportedAt: new Date().toISOString(),
+      settings: settings,
+      route: curRoute ? curRoute.id : null,
+      checkins: checkins,
+      notified: Array.from(notified)
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'taishan-footprints-' + new Date().toISOString().slice(0, 10) + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    showToast('已导出备份文件');
+  }
+
+  // 恢复用户配置与打卡记录；data 需满足 { settings, route, checkins, notified }
+  function importData(file) {
+    const reader = new FileReader();
+    reader.onload = function () {
+      let data = null;
+      try { data = JSON.parse(reader.result); } catch (e) { data = null; }
+      if (!data || typeof data !== 'object' || data.app !== 'travel-footprints') {
+        showToast('导入失败：文件不是本应用的备份');
+        return;
+      }
+      // 用户配置
+      if (data.settings && typeof data.settings === 'object') {
+        settings = Object.assign({}, SETTING_DEFAULTS, data.settings);
+        saveSettings();
+        follow = settings.autoFollow;
+        restartGeoWatch();
+      }
+      // 打卡记录
+      if (data.checkins && typeof data.checkins === 'object') {
+        checkins = data.checkins;
+        store.set(CHECKINS_KEY, checkins);
+      }
+      // 已通知集合
+      if (Array.isArray(data.notified)) {
+        notified = new Set(data.notified);
+        store.set(NOTIFIED_KEY, data.notified);
+      }
+      // 选中路线
+      if (data.route && getRoute(data.route)) {
+        curRoute = getRoute(data.route);
+        store.set(ROUTE_KEY, curRoute.id);
+      }
+      // 刷新全部视图
+      selectedId = null;
+      viewMode = 'list';
+      $('#sheet').classList.remove('detail-mode');
+      nearestId = null;
+      renderRouteTabs();
+      drawRoute();
+      renderProgress();
+      renderList();
+      updateStatus();
+      refreshMarkers();
+      showToast('已恢复备份');
+    };
+    reader.onerror = function () { showToast('读取文件失败'); };
+    reader.readAsText(file);
   }
 
   /* ---------- check-in ---------- */

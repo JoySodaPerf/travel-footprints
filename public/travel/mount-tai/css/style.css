@@ -370,6 +370,48 @@ body {
   background: var(--card);
 }
 
+/* 数据备份 / 版本信息 */
+.set-title { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 4px; }
+.set-data-actions { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+.set-btn {
+  flex: 1;
+  min-width: 130px;
+  border: none;
+  border-radius: 10px;
+  padding: 11px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #FDFBF5;
+  background: linear-gradient(135deg, #14453D 0%, #1E5A4C 100%);
+  cursor: pointer;
+  text-align: center;
+}
+.set-btn:active { transform: scale(0.97); }
+.set-btn.ghost {
+  background: var(--card);
+  color: var(--green);
+  border: 1px solid var(--green);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.set-about {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.set-about b { font-size: 14px; }
+.set-about span { font-size: 12px; color: var(--ink); }
+.set-about code {
+  background: rgba(20,69,61,0.08);
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-family: inherit;
+  color: var(--green);
+  font-weight: 700;
+}
+.set-about-muted { color: var(--muted) !important; }
+
 /* ---------- toast ---------- */
 .toast {
   position: fixed;
