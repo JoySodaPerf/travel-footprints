@@ -8,7 +8,8 @@
     return;
   }
 
-  const POIS = window.POIS || [];
+  const ROUTES = window.ROUTES || [];
+  const ROUTE_KEY = 'tf:route:v1';
   const CHECKINS_KEY = 'tf:checkins:v1';
   const NOTIFIED_KEY = 'tf:notified:v1';
   const SETTINGS_KEY = 'tf:settings:v1';
@@ -40,8 +41,13 @@
   let simMode = false;
   let deferredPrompt = null;
   let settings = Object.assign({}, SETTING_DEFAULTS);
+  let curRoute = ROUTES[0] || null;          // 当前选中路线
   const poiMarkers = {};
   const poiCircles = {};
+  /* 多路线：返回当前路线的打卡点数组 */
+  function getPOIS() { return (curRoute && curRoute.pois) ? curRoute.pois : []; }
+  /* 根据路线 id 查路线对象 */
+  function getRoute(id) { for (let i = 0; i < ROUTES.length; i++) if (ROUTES[i].id === id) return ROUTES[i]; return null; }
   const store = {
     get: function (k, d) { try { return JSON.parse(localStorage.getItem(k)) || d; } catch (e) { return d; } },
     set: function (k, v) { localStorage.setItem(k, JSON.stringify(v)); }
@@ -70,9 +76,10 @@
   };
   function routeStats() {
     let dist = 0, gain = 0;
-    for (let i = 1; i < POIS.length; i++) {
-      dist += haversine(POIS[i - 1], POIS[i]);
-      const dAlt = POIS[i].alt - POIS[i - 1].alt;
+    const p = getPOIS();
+    for (let i = 1; i < p.length; i++) {
+      dist += haversine(p[i - 1], p[i]);
+      const dAlt = p[i].alt - p[i - 1].alt;
       if (dAlt > 0) gain += dAlt;
     }
     return { dist: dist, gain: gain };
@@ -108,7 +115,8 @@
 
   /* ---------- poi helpers ---------- */
   function poiById(id) {
-    for (let i = 0; i < POIS.length; i++) if (POIS[i].id === id) return POIS[i];
+    const p = getPOIS();
+    for (let i = 0; i < p.length; i++) if (p[i].id === id) return p[i];
     return null;
   }
   function isChecked(p) { return !!checkins[p.id]; }
@@ -130,6 +138,7 @@
   }
 
   /* ---------- map ---------- */
+  let routeLayer = null;   // 当前路线图形的 layerGroup，切换路线时清空重建
   function initMap() {
     map = L.map('map', { zoomControl: true, attributionControl: true, maxZoom: 19 });
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -137,58 +146,71 @@
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(map);
 
-    const bounds = L.latLngBounds(POIS.map(function (p) { return [p.lat, p.lng]; }));
-    bounds.extend([36.19, 117.075]);
-    bounds.extend([36.27, 117.12]);
-    map.fitBounds(bounds.pad(0.12));
-
-    // 登山路线：白色描边 + 金色虚线，任何底图上都清晰
-    const route = POIS.map(function (p) { return [p.lat, p.lng]; });
-    L.polyline(route, {
-      color: '#FFFFFF', weight: 6, opacity: 0.6,
-      lineCap: 'round', lineJoin: 'round', interactive: false
-    }).addTo(map);
-    L.polyline(route, {
-      color: '#C9A227', weight: 3, opacity: 0.95, dashArray: '6 8',
-      lineCap: 'round', lineJoin: 'round', interactive: false
-    }).addTo(map);
-
-    POIS.forEach(function (p) {
-      const circle = L.circle([p.lat, p.lng], {
-        radius: p.radius,
-        color: '#C9A227',
-        weight: 1,
-        dashArray: '4 6',
-        fillColor: '#C9A227',
-        fillOpacity: 0.05,
-        interactive: false
-      }).addTo(map);
-      poiCircles[p.id] = circle;
-
-      const marker = L.circleMarker([p.lat, p.lng], markerStyle(p)).addTo(map);
-      marker.on('click', function () { openDetail(p.id); });
-      poiMarkers[p.id] = marker;
-    });
-
     map.on('click', function (e) {
       if (simMode) { setUserPos(e.latlng.lat, e.latlng.lng, 10); }
     });
     // 用户拖动/缩放地图后停止自动回中，空闲 N 秒后恢复
     map.on('dragstart zoomstart', userInteracted);
+
+    drawRoute();
+  }
+
+  // 按当前路线绘制打卡点/路线/半径，并自动取景
+  function drawRoute() {
+    const pois = getPOIS();
+    const markerColor = (curRoute && curRoute.marker) ? curRoute.marker : '#C9A227';
+    if (routeLayer) map.removeLayer(routeLayer);
+    routeLayer = L.layerGroup().addTo(map);
+
+    const src = pois.map(function (p) { return [p.lat, p.lng]; });
+
+    // 登山路线：白色描边 + 路线色虚线
+    L.polyline(src, {
+      color: '#FFFFFF', weight: 6, opacity: 0.6,
+      lineCap: 'round', lineJoin: 'round', interactive: false
+    }).addTo(routeLayer);
+    L.polyline(src, {
+      color: markerColor, weight: 3, opacity: 0.92, dashArray: '6 8',
+      lineCap: 'round', lineJoin: 'round', interactive: false
+    }).addTo(routeLayer);
+
+    pois.forEach(function (p) {
+      const circle = L.circle([p.lat, p.lng], {
+        radius: p.radius,
+        color: markerColor,
+        weight: 1,
+        dashArray: '4 6',
+        fillColor: markerColor,
+        fillOpacity: 0.06,
+        interactive: false
+      }).addTo(routeLayer);
+      poiCircles[p.id] = circle;
+
+      const marker = L.circleMarker([p.lat, p.lng], markerStyle(p)).addTo(routeLayer);
+      marker.on('click', function () { openDetail(p.id); });
+      poiMarkers[p.id] = marker;
+    });
+
+    // 取景：仅覆盖当前路线，带上边距
+    const bounds = L.latLngBounds(src);
+    map.fitBounds(bounds.pad(0.14));
   }
 
   function markerStyle(p) {
+    const markerColor = (curRoute && curRoute.marker) ? curRoute.marker : '#C9A227';
     if (isChecked(p)) {
       return { radius: 9, color: '#2E7D32', weight: 2, fillColor: '#2E7D32', fillOpacity: 1 };
     }
     if (p.id === nearestId) {
-      return { radius: 10, color: '#C9A227', weight: 2.5, fillColor: '#F5C542', fillOpacity: 1 };
+      return { radius: 10, color: markerColor, weight: 2.5, fillColor: '#F5C542', fillOpacity: 1 };
     }
     return { radius: 8, color: '#C0392B', weight: 2, fillColor: '#F6F3EC', fillOpacity: 1 };
   }
 
   function refreshMarkers() {
-    POIS.forEach(function (p) { poiMarkers[p.id].setStyle(markerStyle(p)); });
+    getPOIS().forEach(function (p) {
+      if (poiMarkers[p.id]) poiMarkers[p.id].setStyle(markerStyle(p));
+    });
   }
 
   /* ---------- geolocation ---------- */
@@ -262,7 +284,7 @@
 
   function nearestUnchecked() {
     let best = null, bestD = Infinity;
-    POIS.forEach(function (p) {
+    getPOIS().forEach(function (p) {
       if (isChecked(p)) return;
       const d = distToUser(p);
       if (d !== null && d < bestD) { bestD = d; best = p; }
@@ -273,7 +295,7 @@
   function updateNearby() {
     let newNearest = null;
     let inRangePoi = null;
-    POIS.forEach(function (p) {
+    getPOIS().forEach(function (p) {
       if (isChecked(p)) return;
       if (inRange(p)) {
         inRangePoi = p;
@@ -309,8 +331,9 @@
 
   /* ---------- rendering ---------- */
   function renderProgress() {
-    const done = POIS.filter(isChecked).length;
-    const total = POIS.length;
+    const pois = getPOIS();
+    const done = pois.filter(isChecked).length;
+    const total = pois.length;
     $('#progress-fill').style.width = (total ? (done / total * 100) : 0) + '%';
     $('#progress-text').textContent = done + ' / ' + total;
     updateSheetToggle();
@@ -319,17 +342,19 @@
   function updateSheetToggle() {
     const sheet = $('#sheet');
     const collapsed = sheet.classList.contains('collapsed');
-    const done = POIS.filter(isChecked).length;
+    const pois = getPOIS();
+    const done = pois.filter(isChecked).length;
     $('#sheet-toggle-text').textContent = collapsed
-      ? '展开列表 · 已打卡 ' + done + '/' + POIS.length
+      ? '展开列表 · 已打卡 ' + done + '/' + pois.length
       : '收起列表';
   }
 
   function renderList() {
     const body = $('#sheet-body');
-    const done = POIS.filter(isChecked).length;
+    const pois = getPOIS();
+    const done = pois.filter(isChecked).length;
     const stats = routeStats();
-    const list = POIS.slice().sort(function (a, b) {
+    const list = pois.slice().sort(function (a, b) {
       const da = distToUser(a), db = distToUser(b);
       if (da === null && db === null) return 0;
       if (da === null) return 1;
@@ -337,7 +362,7 @@
       return da - db;
     });
 
-    let html = '<div class="list-head">登山路线 · 全程约 ' + fmtDist(stats.dist) + ' · 累计爬升约 ' + Math.round(stats.gain) + 'm · 已打卡 ' + done + '/' + POIS.length + (userPos ? '（按距离排序）' : '') + '</div>';
+    let html = '<div class="list-head">' + (curRoute ? curRoute.name : '登山路线') + ' · ' + (curRoute && curRoute.tip ? curRoute.tip + ' · ' : '') + '全程约 ' + fmtDist(stats.dist) + ' · 累计爬升约 ' + Math.round(stats.gain) + 'm · 已打卡 ' + done + '/' + pois.length + (userPos ? '（按距离排序）' : '') + '</div>';
     list.forEach(function (p) {
       const d = distToUser(p);
       const ck = checkins[p.id];
@@ -629,15 +654,53 @@
     if (sub) sub.textContent = msg;
   }
 
+  /* ---------- 多路线切换 ---------- */
+  function renderRouteTabs() {
+    const tabs = $('#route-tabs');
+    if (!tabs) return;
+    tabs.innerHTML = ROUTES.map(function (r) {
+      const active = (curRoute && curRoute.id === r.id) ? ' active' : '';
+      const style = curRoute && curRoute.id === r.id && r.marker ? ' style="border-color:' + r.marker + ';color:' + r.marker + '"' : '';
+      return '<button class="route-tab' + active + '" type="button" data-route="' + r.id + '"' + style + '>' + r.name + '</button>';
+    }).join('');
+    tabs.querySelectorAll('.route-tab').forEach(function (el) {
+      el.addEventListener('click', function () { switchRoute(el.dataset.route); });
+    });
+  }
+
+  function switchRoute(id) {
+    const r = getRoute(id);
+    if (!r || (curRoute && curRoute.id === r.id)) return;
+    curRoute = r;
+    store.set(ROUTE_KEY, r.id);
+    // 重置面板模式，重建地图点位与列表、进度，并清除最近通知标记
+    selectedId = null;
+    viewMode = 'list';
+    $('#sheet').classList.remove('detail-mode');
+    nearestId = null;
+    renderRouteTabs();
+    drawRoute();
+    renderProgress();
+    renderList();
+    updateStatus();
+    refreshMarkers();
+    showToast('已切换到「' + r.name + '」');
+  }
+
   function init() {
     checkins = store.get(CHECKINS_KEY, {});
     try { notified = new Set(store.get(NOTIFIED_KEY, [])); } catch (e) { notified = new Set(); }
     loadSettings();
     follow = settings.autoFollow;
+    // 恢复上次选中的路线
+    const saved = store.get(ROUTE_KEY, null);
+    const r = saved ? getRoute(saved) : null;
+    if (r) curRoute = r;
 
     try {
       initMap();
       bindEvents();
+      renderRouteTabs();
       renderProgress();
       renderList();
       startGeo();

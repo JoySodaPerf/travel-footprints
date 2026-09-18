@@ -78,6 +78,33 @@ body {
 .progress-fill { height: 100%; width: 0%; border-radius: 999px; background: linear-gradient(90deg, var(--gold), #E8C65A); transition: width 0.5s ease; }
 .progress-text { font-size: 12px; color: rgba(253,251,245,0.9); font-variant-numeric: tabular-nums; }
 
+/* 路线切换器 */
+.route-tabs {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.route-tabs::-webkit-scrollbar { display: none; }
+.route-tab {
+  flex-shrink: 0;
+  border: 1px solid rgba(253,251,245,0.35);
+  background: rgba(253,251,245,0.10);
+  color: #FDFBF5;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all .2s ease;
+}
+.route-tab.active {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #1E2A2A;
+}
+
 /* ---------- map ---------- */
 #map {
   flex: 1;
