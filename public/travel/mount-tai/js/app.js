@@ -121,6 +121,14 @@
     return d !== null && d <= p.radius;
   }
 
+  // users 是否位于泰山区域（中心为登山路线中点，半径超过 8km 视为“非泰山附近”）
+  const TAISHAN_CENTER = { lat: 36.220, lng: 117.103 };
+  const TAISHAN_RADIUS = 8000; // 米
+  function isNearTaiShan(pos) {
+    if (!pos) return false;
+    return haversine(pos, TAISHAN_CENTER) <= TAISHAN_RADIUS;
+  }
+
   /* ---------- map ---------- */
   function initMap() {
     map = L.map('map', { zoomControl: true, attributionControl: true, maxZoom: 19 });
@@ -221,7 +229,7 @@
     } else {
       userMarker.setLatLng([lat, lng]);
     }
-    if (follow) map.panTo([lat, lng], { animate: true, duration: 0.6 });
+    if (follow && isNearTaiShan(userPos)) map.panTo([lat, lng], { animate: true, duration: 0.6 });
 
     updateStatus();
     updateCoord();
