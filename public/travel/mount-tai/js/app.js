@@ -11,7 +11,7 @@
   const ROUTES = window.ROUTES || [];
   const ROUTE_KEY = 'tf:route:v1';
   // 应用版本号，发版时需与 sw.js 中的 VERSION 保持一致同步递增
-  const APP_VERSION = 'v9';
+  const APP_VERSION = 'v11';
   const APP_NAME = '泰山 · 打卡足迹';
   const CHECKINS_KEY = 'tf:checkins:v1';
   const NOTIFIED_KEY = 'tf:notified:v1';
@@ -813,6 +813,67 @@
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').catch(function () { /* offline optional */ });
+      // 监听 SW 清缓存后通知刷新
+      navigator.serviceWorker.addEventListener('message', function (e) {
+        if (e.data === 'reload') window.location.reload();
+      });
+    }
+
+    checkVersion();
+  }
+
+  /* ---------- 版本检测 ---------- */
+  function checkVersion() {
+    const LOCAL_VER_KEY = 'tf:appver';
+    fetch('version.json?t=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (!data || !data.version) return;
+        const local = store.get(LOCAL_VER_KEY, null);
+        // 首次使用：记录版本，不提示
+        if (!local) { store.set(LOCAL_VER_KEY, data.version); return; }
+        if (local !== data.version) showUpdateBanner(data.version);
+      })
+      .catch(function () { /* 离线时静默 */ });
+  }
+
+  function showUpdateBanner(serverVer) {
+    // 防止重复弹
+    if ($('#update-banner')) return;
+    const banner = document.createElement('div');
+    banner.id = 'update-banner';
+    banner.className = 'update-banner';
+    banner.innerHTML =
+      '<div class="update-inner">' +
+        '<div class="update-text">' +
+          '<b>发现新版本</b>' +
+          '<span>当前 ' + APP_VERSION + ' → 最新 ' + serverVer + '，建议更新以获得最新打卡点与功能。</span>' +
+        '</div>' +
+        '<div class="update-actions">' +
+          '<button class="update-btn" id="update-now" type="button">立即更新</button>' +
+          '<button class="update-dismiss" id="update-later" type="button">稍后</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(banner);
+    requestAnimationFrame(function () { banner.classList.add('show'); });
+
+    $('#update-now').addEventListener('click', applyUpdate);
+    $('#update-later').addEventListener('click', function () {
+      banner.classList.remove('show');
+      setTimeout(function () { banner.remove(); }, 300);
+    });
+  }
+
+  function applyUpdate() {
+    const banner = $('#update-banner');
+    if (banner) { banner.innerHTML = '<div class="update-progress">正在清除缓存并刷新…</div>'; }
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage('clear-and-reload');
+      // 超时保护：5 秒后强制刷新
+      setTimeout(function () { window.location.reload(); }, 5000);
+    } else {
+      // 无 SW 控制时直接清 localStorage 版本标记并硬刷
+      window.location.reload();
     }
   }
 

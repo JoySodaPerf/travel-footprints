@@ -1,7 +1,7 @@
 /* Service Worker：应用壳离线缓存 + 地图瓦片有限缓存
  * 发版说明：每次发布新版本必须将 VERSION 递增（如 tf-v2 -> tf-v3），
  * 已安装用户启动时检测到 sw.js 变化即自动更新到新版本。 */
-const VERSION = 'tf-v10';
+const VERSION = 'tf-v11';
 const PRECACHE = [
   './',
   'index.html',
@@ -35,12 +35,38 @@ self.addEventListener('activate', function (e) {
   );
 });
 
+// 接收客户端"清除缓存并刷新"指令
+self.addEventListener('message', function (e) {
+  if (e.data === 'clear-and-reload') {
+    e.waitUntil(
+      caches.keys().then(function (keys) {
+        return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+      }).then(function () {
+        return self.skipWaiting();
+      }).then(function () {
+        // 通知所有客户端刷新
+        return self.clients.matchAll({ includeUncontrolled: true });
+      }).then(function (clients) {
+        clients.forEach(function (c) { c.postMessage('reload'); });
+      })
+    );
+  }
+});
+
 self.addEventListener('fetch', function (e) {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
 
   if (url.hostname === 'tile.openstreetmap.org') {
     e.respondWith(tileFetch(e.request));
+    return;
+  }
+
+  // version.json 始终走网络，不经过缓存
+  if (url.pathname.endsWith('/version.json') || url.pathname.endsWith('version.json')) {
+    e.respondWith(
+      fetch(e.request).catch(function () { return new Response('{}', { status: 503 }); })
+    );
     return;
   }
 

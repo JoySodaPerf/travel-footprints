@@ -6,3 +6,6 @@
 
 /travel/mount-tai/index.html
   Cache-Control: no-cache
+
+/travel/mount-tai/version.json
+  Cache-Control: no-cache, no-store, must-revalidate
