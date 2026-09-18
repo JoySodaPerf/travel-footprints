@@ -16,6 +16,29 @@
 
 html, body { height: 100%; }
 
+/* ---------- boot screen ---------- */
+.boot-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: var(--paper);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.boot-box { text-align: center; }
+.boot-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--green);
+}
+.boot-sub {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
 body {
   display: flex;
   flex-direction: column;

@@ -1,6 +1,13 @@
 'use strict';
 
 (function () {
+  // Leaflet（CDN）未加载时给出明确提示，避免白屏/黑屏
+  if (typeof L === 'undefined') {
+    const sub = document.querySelector('.boot-sub');
+    if (sub) sub.textContent = '加载失败：地图组件不可用，请检查网络后重试';
+    return;
+  }
+
   const POIS = window.POIS || [];
   const CHECKINS_KEY = 'tf:checkins:v1';
   const NOTIFIED_KEY = 'tf:notified:v1';
@@ -599,17 +606,30 @@
     });
   }
 
+  function failBoot(msg) {
+    const sub = document.querySelector('.boot-sub');
+    if (sub) sub.textContent = msg;
+  }
+
   function init() {
     checkins = store.get(CHECKINS_KEY, {});
     try { notified = new Set(store.get(NOTIFIED_KEY, [])); } catch (e) { notified = new Set(); }
     loadSettings();
     follow = settings.autoFollow;
 
-    initMap();
-    bindEvents();
-    renderProgress();
-    renderList();
-    startGeo();
+    try {
+      initMap();
+      bindEvents();
+      renderProgress();
+      renderList();
+      startGeo();
+    } catch (e) {
+      failBoot('加载失败：' + (e && e.message ? e.message : '未知错误'));
+      return;
+    }
+
+    const boot = $('#boot-screen');
+    if (boot) boot.classList.add('hidden');
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').catch(function () { /* offline optional */ });
