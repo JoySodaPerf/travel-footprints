@@ -11,7 +11,7 @@
   const ROUTES = window.ROUTES || [];
   const ROUTE_KEY = 'tf:route:v1';
   // 应用版本号，发版时需与 sw.js 中的 VERSION 保持一致同步递增
-  const APP_VERSION = 'v11';
+  const APP_VERSION = 'v12';
   const APP_NAME = '泰山 · 打卡足迹';
   const CHECKINS_KEY = 'tf:checkins:v1';
   const NOTIFIED_KEY = 'tf:notified:v1';
