@@ -107,6 +107,27 @@ body {
   pointer-events: none;
 }
 
+/* 当前经纬度角标：位于状态 chip 下方，实时刷新，便于判断定位漂移 */
+.geo-coord {
+  position: absolute;
+  top: 46px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 800;
+  background: rgba(20, 45, 61, 0.72);
+  color: #FDFBF5;
+  font-size: 11px;
+  line-height: 1;
+  padding: 5px 14px;
+  border-radius: 999px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+  backdrop-filter: blur(4px);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.2px;
+  pointer-events: none;
+}
+.geo-coord[hidden] { display: none; }
+
 .locate-btn {
   position: fixed;
   right: 16px;

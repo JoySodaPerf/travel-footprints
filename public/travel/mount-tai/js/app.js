@@ -224,9 +224,19 @@
     if (follow) map.panTo([lat, lng], { animate: true, duration: 0.6 });
 
     updateStatus();
+    updateCoord();
     updateNearby();
     refreshSheet();
     refreshMarkers();
+  }
+
+  // 实时刷新当前经纬度角标（便于对照判断定位漂移）
+  function updateCoord() {
+    const c = $('#geo-cursor');
+    if (!c) return;
+    if (!userPos) { c.hidden = true; return; }
+    c.hidden = false;
+    c.textContent = '经纬 ' + userPos.lat.toFixed(6) + ', ' + userPos.lng.toFixed(6);
   }
 
   function updateStatus() {
